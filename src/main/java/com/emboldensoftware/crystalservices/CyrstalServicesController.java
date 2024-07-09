@@ -53,7 +53,7 @@ public class CyrstalServicesController {
 		
 		Response<Embedding> vEmbedding = embeddingModel.embed(searchText);
 		float[] vector = vEmbedding.content().vector();
-		FindIterable<Document> docs = collection.find(vector, 1);
+		FindIterable<Document> docs = collection.find(vector, 3);
 		
 		List<Crystal> crystals = mapDocsToCrystals(docs);
 		
