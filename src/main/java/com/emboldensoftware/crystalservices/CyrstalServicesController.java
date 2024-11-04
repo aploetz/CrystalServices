@@ -10,15 +10,18 @@ import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.huggingface.HuggingFaceEmbeddingModel;
 import dev.langchain4j.model.output.Response;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -48,16 +51,38 @@ public class CyrstalServicesController {
                 .build();
 	}
 	
+	@PostMapping("/image")
+	public ResponseEntity<List<Crystal>> getCrystalsByImages(HttpServletRequest req, 
+            @RequestBody ImageRequest imageJSON) {
+		
+		if (imageJSON.getImage() == null) {
+			return ResponseEntity.ofNullable(null);
+		} else {
+			byte[] image = imageJSON.getImage();
+			byte[] decoded = Base64.getDecoder().decode(image);
+			
+			Response<Embedding> vEmbedding = embeddingModel.embed(decoded.toString());
+			float[] vector = vEmbedding.content().vector();
+			FindIterable<Document> docs = collection.find(vector, 8);
+			
+			List<Crystal> crystals = mapDocsToCrystals(docs);
+			return ResponseEntity.ok(crystals);
+		}
+	}
+	
 	@GetMapping("/text/{text}")
-	public ResponseEntity<List<Crystal>> getBook(@PathVariable(value="text") String searchText) {
+	public ResponseEntity<List<Crystal>> getCrystal(@PathVariable(value="text") String searchText) {
 		
-		Response<Embedding> vEmbedding = embeddingModel.embed(searchText);
-		float[] vector = vEmbedding.content().vector();
-		FindIterable<Document> docs = collection.find(vector, 3);
-		
-		List<Crystal> crystals = mapDocsToCrystals(docs);
-		
-		return ResponseEntity.ok(crystals);
+		if (searchText.isEmpty() || searchText.isBlank()) {
+			return ResponseEntity.ofNullable(null);
+		} else {
+			Response<Embedding> vEmbedding = embeddingModel.embed(searchText);
+			float[] vector = vEmbedding.content().vector();
+			FindIterable<Document> docs = collection.find(vector, 8);
+			
+			List<Crystal> crystals = mapDocsToCrystals(docs);
+			return ResponseEntity.ok(crystals);
+		}		
 	}
 	
 	private List<Crystal> mapDocsToCrystals(FindIterable<Document> docs) {
@@ -71,6 +96,7 @@ public class CyrstalServicesController {
 			String crystalText = doc.getString("text");
 			String[] crystalProperties = crystalText.split("\\| ",0);
 			
+			// testing
 			System.out.println(crystalText);
 			
 			// gemstone: Amber| alternate name: -| physical attributes: Immune system, glands| emotional attributes: Brings warmth and positivity, relieves stress| metaphysical attributes: Purifies energy, offers protection| origin: Baltic region, Dominican Republic, Myanmar| maximum mohs hardness: 2.5| minimum mohs hardness: 2
